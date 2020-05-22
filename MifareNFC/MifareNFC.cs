@@ -95,11 +95,14 @@ namespace MifareNFCLib
                 if (msg != MifareMessage.MIFARE_NFC_NO_ERROR) return msg;
 
                 OnNewTagDiscovered?.Invoke(tagInfo);
-                if (AutoHandleWriting)
+                if (AutoHandleWriting&&_waitingForWrite)
                 {
                     if (_writingBolck < 0) return MifareMessage.MIFARE_NFC_AUTO_WRITE_NOT_SETUPED;
-                    if (_writingData == null || (_writingData.Count() > 0 && _writingData.Count() <= 16)) return MifareMessage.MIFARE_NFC_INVALID_AUTO_WRITE_DATA;
+                    if (_writingData == null || !(_writingData.Count() > 0 && _writingData.Count() <= 16)) return MifareMessage.MIFARE_NFC_INVALID_AUTO_WRITE_DATA;
                     var res = WriteDataToBlock(_writingBolck, _writingData);
+                    AutoHandleWriting = false;
+                    _waitingForWrite = false;
+                    _writingData = null;
                     if (res != MifareMessage.MIFARE_NFC_TAG_WRITTEN) return res;
                 }
                 else if (AutoHandleReading)
