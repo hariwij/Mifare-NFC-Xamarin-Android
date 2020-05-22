@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">nfctest</string>
+    <string name="app_name">MifareNFCLib.Demo</string>
     <string name="action_settings">Settings</string>
 </resources>

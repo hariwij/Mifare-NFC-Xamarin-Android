@@ -1,19 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Android.App;
 using Android.Content;
 using Android.Nfc;
 using Android.Nfc.Tech;
-using Android.OS;
-using Android.Runtime;
-using Android.Views;
-using Android.Widget;
-using Java.Security;
 
-namespace nfctest
+namespace MifareNFCLib
 {
     public class MifareNFC
     {
@@ -261,6 +255,22 @@ namespace nfctest
             public int Size { get; set; }
             public MifareClassicType Type { get; set; }
             public List<string> TechList { get; set; }
+
+            public string UID()
+            {
+                string data = "";
+                for (int ii = 0; ii < Uid.Length; ii++)
+                {
+                    if (!string.IsNullOrEmpty(data))
+                        data += "-";
+                    data += Uid[ii].ToString("X2");
+                }
+                return data;
+            }
+            public override string ToString()
+            {
+                return $"[UID : {UID()}] [Block Count : {BlockCount}] [Sector Count : {SectorCount}] [Size : {Size}] [Type : {Type}]";
+            }
         }
     }
 }

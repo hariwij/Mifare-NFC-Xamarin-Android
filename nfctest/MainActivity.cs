@@ -11,14 +11,14 @@ using Android.Nfc.Tech;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System;
-
-namespace nfctest
+using MifareNFCLib;
+namespace MifareNFCLib.Demo
 {
     [Activity(Label = "@string/app_name", Theme = "@style/AppTheme", MainLauncher = true)]
     public class MainActivity : AppCompatActivity
     {
         private EditText CLI;
-        private MifareNFC NFC;
+        private readonly MifareNFC NFC = new MifareNFC();
         int block = 0;
         byte[] data;
         protected override void OnCreate(Bundle savedInstanceState)
@@ -30,22 +30,23 @@ namespace nfctest
             CLI = FindViewById<EditText>(Resource.Id.editText1);
             FindViewById<FloatingActionButton>(Resource.Id.floatingActionButton1).Click += MainActivity_Click;
 
-            Teminal.Init(CLI);
-            Teminal.WriteLine("Initializeing...");
-            Teminal.WriteLine(NFC.Initialize(this).ToString());
+            Terminal.Init(CLI);
+
+            Terminal.WriteLine("Initializeing...");
+            Terminal.WriteLine(NFC.Initialize(this).ToString());
+
             NFC.Enable_WriteDataToBlock_WhenTagDetected();
             NFC.Enable_ReadDataFromBlock_WhenTagDetected();
+
             NFC.OnNewTagDiscovered += NewTagDetected;
             NFC.OnReadingBlock += OnReadBlock;
             NFC.OnWritingBlock += OnWriteBlock;
         }
-
         private void MainActivity_Click(object sender, System.EventArgs e)
         {
             data = Encoding.ASCII.GetBytes("qhf");
-            Teminal.WriteLine("Set Writing Data >> " + NFC.WriteDataToBlock_WhenTagDetected(block, data).ToString());
+            Terminal.WriteLine("Set Writing Data >> " + NFC.WriteDataToBlock_WhenTagDetected(block, data).ToString());
         }
-
         protected override void OnResume()
         {
             base.OnResume();
@@ -59,42 +60,34 @@ namespace nfctest
         protected override void OnNewIntent(Intent intent)
         {
             base.OnNewIntent(intent);
-            Teminal.WriteLine("New Intent >> " + NFC.OnNewIntent(intent).ToString());
+            Terminal.WriteLine("New Intent >> " + NFC.OnNewIntent(intent).ToString());
         }
-
         void NewTagDetected(MifareNFC.TagInfo? info)
         {
-
+            Terminal.WriteLine(info.ToString());
         }
         void OnReadBlock(int block,byte[] data)
         {
-
+            string dta = "";
+            for (int ii = 0; ii < data.Length; ii++)
+            {
+                if (!string.IsNullOrEmpty(dta))
+                    dta += "-";
+                dta += data[ii].ToString("X2");
+            }
+            Terminal.WriteLine($"Reading >> [Block : {block}] [Data : {dta}]");
         }
         void OnWriteBlock(int block, byte[] data)
         {
-
+            string dta = "";
+            for (int ii = 0; ii < data.Length; ii++)
+            {
+                if (!string.IsNullOrEmpty(dta))
+                    dta += "-";
+                dta += data[ii].ToString("X2");
+            }
+            Terminal.WriteLine($"Writing >> [Block : {block}] [Data : {dta}]");
         }
-
-        //public void WriteToTag(Intent intent, string content)
-        //{
-        //    var tag = intent.GetParcelableExtra(NfcAdapter.ExtraTag) as Tag;
-        //    if (tag != null)
-        //    {
-        //        Ndef ndef = Ndef.Get(tag);
-        //        if (ndef != null && ndef.IsWritable)
-        //        {
-        //            var payload = Encoding.ASCII.GetBytes(content);
-        //            var mimeBytes = Encoding.ASCII.GetBytes("text/plain");
-        //            var record = new NdefRecord(NdefRecord.TnfWellKnown, mimeBytes, new byte[0], payload);
-        //            var ndefMessage = new NdefMessage(new[] { record });
-        //            Teminal.WriteLine("------BEGIN WRITING------");
-        //            ndef.Connect();
-        //            ndef.WriteNdefMessage(ndefMessage);
-        //            ndef.Close();
-        //            Teminal.WriteLine("------END WRITING------");
-        //        }
-        //    }
-        //}
         public override void OnRequestPermissionsResult(int requestCode, string[] permissions, [GeneratedEnum] Android.Content.PM.Permission[] grantResults)
         {
             Xamarin.Essentials.Platform.OnRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -102,7 +95,7 @@ namespace nfctest
             base.OnRequestPermissionsResult(requestCode, permissions, grantResults);
         }
     }
-    public static class Teminal
+    public static class Terminal
     {
         private static EditText _cli;
         public static void Init(EditText Cli)

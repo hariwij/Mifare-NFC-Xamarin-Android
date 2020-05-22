@@ -11,7 +11,7 @@ using Android.App;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("MifareNFC")]
-[assembly: AssemblyCopyright("Copyright HariWij©  2020")]
+[assembly: AssemblyCopyright("Copyright HariWij ©  2020")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 [assembly: ComVisible(false)]
