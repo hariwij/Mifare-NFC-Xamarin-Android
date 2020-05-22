@@ -225,7 +225,6 @@ namespace MifareNFCLib
             return WriteDataToBlock(Mifare, block, data);
         }
         #endregion
-
         public enum MifareMessage : uint
         {
             MIFARE_NFC_NO_ERROR = 1,

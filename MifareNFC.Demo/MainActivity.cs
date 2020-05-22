@@ -3,15 +3,10 @@ using Android.OS;
 using Android.Support.V7.App;
 using Android.Runtime;
 using Android.Widget;
-using Android.Nfc;
 using Android.Support.Design.Widget;
 using Android.Content;
 using System.Text;
-using Android.Nfc.Tech;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using System;
-using MifareNFCLib;
+
 namespace MifareNFCLib.Demo
 {
     [Activity(Label = "@string/app_name", Theme = "@style/AppTheme", MainLauncher = true)]
