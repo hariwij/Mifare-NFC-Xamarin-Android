@@ -6,6 +6,14 @@ using Android.Widget;
 using Android.Support.Design.Widget;
 using Android.Content;
 using System.Text;
+using Android.Nfc.Tech;
+using Java.Lang.Reflect;
+using System.Collections.Generic;
+using System.Linq;
+using Android.Nfc;
+using System.IO;
+using System.Runtime.CompilerServices;
+using System;
 
 namespace MifareNFCLib.Demo
 {
@@ -14,8 +22,6 @@ namespace MifareNFCLib.Demo
     {
         private EditText CLI;
         private readonly MifareNFC NFC = new MifareNFC();
-        int block = 0;
-        byte[] data;
         protected override void OnCreate(Bundle savedInstanceState)
         {
             base.OnCreate(savedInstanceState);
@@ -29,18 +35,20 @@ namespace MifareNFCLib.Demo
 
             Terminal.WriteLine("Initializeing...");
             Terminal.WriteLine(NFC.Initialize(this).ToString());
-
+            NFC.Initialize(this);
             NFC.Enable_WriteDataToBlock_WhenTagDetected();
-            NFC.Enable_ReadDataFromBlock_WhenTagDetected();
-
             NFC.OnNewTagDiscovered += NewTagDetected;
-            NFC.OnReadingBlock += OnReadBlock;
-            NFC.OnWritingBlock += OnWriteBlock;
+            NFC.OnReadingMessage += OnReadBlock;
+            NFC.OnWritingMessage += OnWriteBlock;
         }
         private void MainActivity_Click(object sender, System.EventArgs e)
         {
-            data = Encoding.ASCII.GetBytes("qhf");
-            Terminal.WriteLine("Set Writing Data >> " + NFC.WriteDataToBlock_WhenTagDetected(block, data).ToString());
+            NdefRecord record = NdefRecord.CreateMime("text/plain", Encoding.ASCII.GetBytes("Harindu Chinthaka Wijesinghe"));
+            NdefRecord record1 = NdefRecord.CreateMime("text/plain", Encoding.ASCII.GetBytes("Hasindu"));
+            //NdefRecord record = NdefRecord.CreateTextRecord("", "Harindu");
+            //NdefRecord record1 = NdefRecord.CreateTextRecord("", "Hasindu");
+            NdefMessage message = new NdefMessage(new NdefRecord[] { record, record1 });
+            Terminal.WriteLine("Set Writing Data >> " + NFC.WriteDataToBlock_WhenTagDetected(message).ToString());
         }
         protected override void OnResume()
         {
@@ -50,38 +58,108 @@ namespace MifareNFCLib.Demo
         protected override void OnPause()
         {
             base.OnPause();
-            NFC.OnPause();
+            //NFC.OnPause();
+            //disableTagWriteMode();
         }
         protected override void OnNewIntent(Intent intent)
         {
             base.OnNewIntent(intent);
             Terminal.WriteLine("New Intent >> " + NFC.OnNewIntent(intent).ToString());
+            //Tag tag = intent.GetParcelableExtra(NfcAdapter.ExtraTag) as Tag;
+
+            //if (mWriteMode && NfcAdapter.ActionTagDiscovered.Equals(intent.Action))
+            //{
+            //    Tag detectedTag = intent.GetParcelableExtra(NfcAdapter.ExtraTag) as Tag;
+            //    NdefRecord record = NdefRecord.CreateMime("text/plain", Encoding.ASCII.GetBytes("Harindu Chinthaka Wijesinghe"));
+            //    NdefRecord record1 = NdefRecord.CreateMime("text/plain", Encoding.ASCII.GetBytes("Hasindu"));
+            //    //NdefRecord record = NdefRecord.CreateTextRecord("", "Harindu");
+            //    //NdefRecord record1 = NdefRecord.CreateTextRecord("", "Hasindu");
+            //    NdefMessage message = new NdefMessage(new NdefRecord[] { record,record1 });
+            //    if (writeTag(message, detectedTag))
+            //    {
+            //        Toast.MakeText(this, "Success: Wrote placeid to nfc tag", ToastLength.Long).Show();
+            //    }
+            //}
         }
+        //public bool writeTag(NdefMessage message, Tag tag)
+        //{
+        //    int size = message.ToByteArray().Length;
+        //    try
+        //    {
+        //        Ndef ndef = Ndef.Get(tag);
+        //        if (ndef != null)
+        //        {
+        //            ndef.Connect();
+
+        //            foreach (var item in ndef.NdefMessage.GetRecords())
+        //            {
+        //                Terminal.WriteLine("MSG >> " + Encoding.UTF8.GetString(item.GetPayload()));
+        //            }
+        //            if (!ndef.IsWritable)
+        //            {
+        //                Toast.MakeText(this,
+        //                "Error: tag not writeable",
+        //                ToastLength.Long).Show();
+        //                return false;
+        //            }
+        //            if (ndef.MaxSize < size)
+        //            {
+        //                Toast.MakeText(this,
+        //                "Error: tag too small",
+        //                ToastLength.Long).Show();
+        //                return false;
+        //            }
+        //            ndef.WriteNdefMessage(message);
+        //            return true;
+        //        }
+        //        else
+        //        {
+        //            NdefFormatable format = NdefFormatable.Get(tag);
+        //            if (format != null)
+        //            {
+        //                try
+        //                {
+        //                    format.Connect();
+        //                    format.Format(message);
+        //                    return true;
+        //                }
+        //                catch (IOException e)
+        //                {
+        //                    return false;
+        //                }
+        //            }
+        //            else
+        //            {
+        //                return false;
+        //            }
+        //        }
+        //    }
+        //    catch (Exception e)
+        //    {
+        //        return false;
+        //    }
+        //}
         void NewTagDetected(MifareNFC.TagInfo? info)
         {
             Terminal.WriteLine(info.ToString());
         }
-        void OnReadBlock(int block,byte[] data)
+        void OnReadBlock(NdefMessage message)
         {
-            string dta = "";
-            for (int ii = 0; ii < data.Length; ii++)
+            NdefRecord[] array = message.GetRecords();
+            for (int i = 0; i < array.Length; i++)
             {
-                if (!string.IsNullOrEmpty(dta))
-                    dta += "-";
-                dta += data[ii].ToString("X2");
+                NdefRecord item = array[i];
+                Terminal.WriteLine($"Reading Msg [{i}] >> " + Encoding.UTF8.GetString(item.GetPayload()));
             }
-            Terminal.WriteLine($"Reading >> [Block : {block}] [Data : {dta}]");
         }
-        void OnWriteBlock(int block, byte[] data)
+        void OnWriteBlock(NdefMessage message)
         {
-            string dta = "";
-            for (int ii = 0; ii < data.Length; ii++)
+            NdefRecord[] array = message.GetRecords();
+            for (int i = 0; i < array.Length; i++)
             {
-                if (!string.IsNullOrEmpty(dta))
-                    dta += "-";
-                dta += data[ii].ToString("X2");
+                NdefRecord item = array[i];
+                Terminal.WriteLine($"Writing Msg [{i}] >> " + Encoding.UTF8.GetString(item.GetPayload()));
             }
-            Terminal.WriteLine($"Writing >> [Block : {block}] [Data : {dta}]");
         }
         public override void OnRequestPermissionsResult(int requestCode, string[] permissions, [GeneratedEnum] Android.Content.PM.Permission[] grantResults)
         {

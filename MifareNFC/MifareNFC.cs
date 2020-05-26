@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Android.App;
 using Android.Content;
@@ -14,23 +15,20 @@ namespace MifareNFCLib
         #region Public Members
         public NfcAdapter NfcAdapter { get; private set; }
         public List<string> Actions { get; private set; }
-        public byte[] AuthKey { get; set; } = new byte[6];
-        public MifareClassic Mifare { get; private set; }
+        public byte[] AuthKey { get; set; } = MifareClassic.KeyDefault.ToArray();
+        public Ndef Mifare { get; private set; }
         public bool AutoHandleWriting { get; set; } = true;
         public bool AutoHandleReading { get; set; } = true;
 
         public Action<TagInfo?> OnNewTagDiscovered;
-        public Action<int, byte[]> OnReadingBlock;
-        public Action<int, byte[]> OnWritingBlock;
+        public Action<NdefMessage> OnReadingMessage;
+        public Action<NdefMessage> OnWritingMessage;
         #endregion
         #region Private Members
         private Activity _act;
         private bool Init = false;
         private bool _waitingForWrite = false;
-        private int _writingBolck = -1;
-        private byte[] _writingData = null;
-
-        private int _readingBolck = -1;
+        private NdefMessage _writingMsg;
         #endregion
         #region Public Methods
         public MifareMessage Initialize(Activity act, string[] actions)
@@ -86,7 +84,7 @@ namespace MifareNFCLib
             if (intent.Extras.IsEmpty) return MifareMessage.MIFARE_NFC_EMPTY_INTENT;
             if (Actions.Contains(intent.Action))
             {
-                var tag = intent.GetParcelableExtra(NfcAdapter.ExtraTag) as Tag;
+                Tag tag = intent.GetParcelableExtra(NfcAdapter.ExtraTag) as Tag;
                 if (tag == null) return MifareMessage.MIFARE_NFC_NULL_TAG;
 
                 TagInfo? tagInfo;
@@ -95,83 +93,79 @@ namespace MifareNFCLib
                 if (msg != MifareMessage.MIFARE_NFC_NO_ERROR) return msg;
 
                 OnNewTagDiscovered?.Invoke(tagInfo);
-                if (AutoHandleWriting&&_waitingForWrite)
+                if (AutoHandleWriting && _waitingForWrite)
                 {
-                    if (_writingBolck < 0) return MifareMessage.MIFARE_NFC_AUTO_WRITE_NOT_SETUPED;
-                    if (_writingData == null || !(_writingData.Count() > 0 && _writingData.Count() <= 16)) return MifareMessage.MIFARE_NFC_INVALID_AUTO_WRITE_DATA;
-                    var res = WriteDataToBlock(_writingBolck, _writingData);
-                    AutoHandleWriting = false;
+                    if (_writingMsg == null) return MifareMessage.MIFARE_NFC_INVALID_AUTO_WRITE_DATA;
+                    var res = WriteMessage(_writingMsg);
                     _waitingForWrite = false;
-                    _writingData = null;
+                    _writingMsg = null;
                     if (res != MifareMessage.MIFARE_NFC_TAG_WRITTEN) return res;
-                }
-                else if (AutoHandleReading)
-                {
-                    if (_readingBolck < 0) return MifareMessage.MIFARE_NFC_AUTO_READ_NOT_SETUPED;
-                    ReadDataFromBlock(_readingBolck);
                 }
                 return MifareMessage.MIFARE_NFC_NO_ERROR;
             }
             else return MifareMessage.MIFARE_NFC_INTENT_ACTION_NOT_FOUND;
         }
-        public void SetAuthenticateKey(byte[] key)
+        //public void SetAuthenticateKey(byte[] key)
+        //{
+        //    AuthKey = key;
+        //}
+        //public MifareMessage AuthenticateSector(Ndef mifc, int sector, byte[] key)
+        //{
+
+        //    mifc.Connect();
+        //    bool authA = mifc.AuthenticateSectorWithKeyA(2, Ndef.KeyNfcForum.ToArray());
+        //    bool authB = mifc.AuthenticateSectorWithKeyB(2, Ndef.KeyDefault.ToArray());
+        //    if (authA && authB) return MifareMessage.MIFARE_NFC_AUTH_OK;
+        //    if (!authA) return MifareMessage.MIFARE_NFC_AUTH_A_FAILED;
+        //    if (!authB) return MifareMessage.MIFARE_NFC_AUTH_B_FAILED;
+        //    return MifareMessage.MIFARE_NFC_AUTH_A_FAILED;
+        //    //var tmp = key;
+        //    //Ndef.KeyDefault.CopyTo(tmp, 0);
+        //    //if (Task.Factory.StartNew<bool>(() => mifc.AuthenticateSectorWithKeyA(1, key)).Result)
+        //    //{
+        //    //    tmp = key;
+        //    //    Ndef.KeyDefault.CopyTo(tmp, 0);
+        //    //    if (Task.Factory.StartNew<bool>(() => mifc.AuthenticateSectorWithKeyB(1, key)).Result)
+        //    //    {
+        //    //        return MifareMessage.MIFARE_NFC_AUTH_OK;
+        //    //    }
+        //    //    else return MifareMessage.MIFARE_NFC_AUTH_A_FAILED;
+        //    //}
+        //    //else return MifareMessage.MIFARE_NFC_AUTH_A_FAILED;
+        //}
+        public (Ndef, TagInfo?, MifareMessage) ReadInfo(Tag tag)
         {
-            AuthKey = key;
+            Ndef mifc = Ndef.Get(tag);
+            if (mifc == null) return (null, null, MifareMessage.MIFARE_NFC_NULL_TAG);
+            mifc.Connect();
+            var msg = ReadMessage(mifc);
+            return (mifc, new TagInfo { Uid = tag.GetId(), MaxSize = mifc.MaxSize, Type = mifc.Type, NdefMessage = msg, Size = msg.ToByteArray().Length, TechList = tag.GetTechList().ToList() }, MifareMessage.MIFARE_NFC_NO_ERROR);
         }
-        public (MifareClassic, TagInfo?, MifareMessage) ReadInfo(Tag tag)
+        public NdefMessage ReadMessage(Ndef mifc)
         {
-            MifareClassic mifc = MifareClassic.Get(tag);
-            if (tag == null) return (null, null, MifareMessage.MIFARE_NFC_NULL_TAG);
-            mifc.ConnectAsync().Wait();
-            return (mifc, new TagInfo { Uid = tag.GetId(), BlockCount = mifc.BlockCount, SectorCount = mifc.SectorCount, Size = mifc.Size, Type = mifc.Type, TechList = tag.GetTechList().ToList() }, MifareMessage.MIFARE_NFC_NO_ERROR);
-        }
-        public MifareMessage AuthenticateSector(MifareClassic mifc, int sector, byte[] key)
-        {
-            var tmp = key;
-            MifareClassic.KeyDefault.CopyTo(tmp, 0);
-            if (Task.Factory.StartNew<bool>(() => mifc.AuthenticateSectorWithKeyA(1, key)).Result)
-            {
-                tmp = key;
-                MifareClassic.KeyDefault.CopyTo(tmp, 0);
-                if (Task.Factory.StartNew<bool>(() => mifc.AuthenticateSectorWithKeyB(1, key)).Result)
-                {
-                    return MifareMessage.MIFARE_NFC_AUTH_OK;
-                }
-                else return MifareMessage.MIFARE_NFC_AUTH_A_FAILED;
-            }
-            else return MifareMessage.MIFARE_NFC_AUTH_A_FAILED;
-        }
-        public List<byte[]> ReadDataFromSector(MifareClassic mifc, int sector)
-        {
-            int firstBlock = mifc.SectorToBlock(sector);
-            int lastBlock = firstBlock + 4;
-            List<byte[]> lstBlocks = new List<byte[]>();
-            for (int i = firstBlock; i < lastBlock; i++)
-            {
-                byte[] block = mifc.ReadBlockAsync(i).Result;
-                lstBlocks.Add(block);
-            }
-            return lstBlocks;
-        }
-        public byte[] ReadDataFromBlock(MifareClassic mifc, int block)
-        {
-            var res = mifc.ReadBlockAsync(block).Result;
-            OnReadingBlock(block, res);
+            var res = mifc.NdefMessage;
+            OnReadingMessage(res);
             return res;
         }
-        public MifareMessage WriteDataToBlock(MifareClassic mifc, int block, byte[] data)
+        public MifareMessage WriteMessage(Ndef mifc, NdefMessage msg)
         {
-            Task.Factory.StartNew(() => mifc.WriteBlockAsync(block, data).Wait());
-            OnWritingBlock(block, data);
+            if (!mifc.IsWritable)
+            {
+                return MifareMessage.MIFARE_NFC_UN_WRITABLE_TAG;
+            }
+            if (mifc.MaxSize < msg.ToByteArray().Length)
+            {
+                return MifareMessage.MIFARE_NFC_INVALID_MSG;
+            }
+            mifc.WriteNdefMessage(msg);
             return MifareMessage.MIFARE_NFC_TAG_WRITTEN;
         }
-        public MifareMessage WriteDataToBlock_WhenTagDetected(int block, byte[] data, bool ignoreLastIncompleteWrite = false)
+        public MifareMessage WriteDataToBlock_WhenTagDetected(NdefMessage msg, bool ignoreLastIncompleteWrite = false)
         {
             if (!AutoHandleWriting) return MifareMessage.MIFARE_NFC_AUTO_WRITE_DISABLED;
             if (_waitingForWrite && !ignoreLastIncompleteWrite) return MifareMessage.MIFARE_NFC_LAST_WRITE_INCOMPLETE;
             _waitingForWrite = true;
-            _writingBolck = block;
-            _writingData = data;
+            _writingMsg = msg;
             return MifareMessage.MIFARE_NFC_WAITING_FOR_TAG;
         }
         public void Enable_WriteDataToBlock_WhenTagDetected()
@@ -181,20 +175,6 @@ namespace MifareNFCLib
         public void Disable_WriteDataToBlock_WhenTagDetected()
         {
             AutoHandleWriting = false;
-        }
-        public MifareMessage ReadDataFromBlock_WhenTagDetected(int block)
-        {
-            if (!AutoHandleReading) return MifareMessage.MIFARE_NFC_AUTO_READ_DISABLED;
-            _readingBolck = block;
-            return MifareMessage.MIFARE_NFC_WAITING_FOR_TAG;
-        }
-        public void Enable_ReadDataFromBlock_WhenTagDetected()
-        {
-            AutoHandleReading = true;
-        }
-        public void Disable_ReadDataFromBlock_WhenTagDetected()
-        {
-            AutoHandleReading = false;
         }
         public string CheckIntentActions(string[] actions)
         {
@@ -208,21 +188,17 @@ namespace MifareNFCLib
         }
         #endregion
         #region Private Methods
-        private MifareMessage AuthenticateSector(int sector, byte[] key)
+        //private MifareMessage AuthenticateSector(int sector, byte[] key)
+        //{
+        //    return AuthenticateSector(Mifare, sector, key);
+        //}
+        private NdefMessage ReadMessage()
         {
-            return AuthenticateSector(Mifare, sector, key);
+            return ReadMessage(Mifare);
         }
-        private List<byte[]> ReadDataFromSector(int sector)
+        private MifareMessage WriteMessage(NdefMessage msg)
         {
-            return ReadDataFromSector(Mifare, sector);
-        }
-        private byte[] ReadDataFromBlock(int block)
-        {
-            return ReadDataFromBlock(Mifare, block);
-        }
-        private MifareMessage WriteDataToBlock(int block, byte[] data)
-        {
-            return WriteDataToBlock(Mifare, block, data);
+            return WriteMessage(Mifare, msg);
         }
         #endregion
         public enum MifareMessage : uint
@@ -237,27 +213,25 @@ namespace MifareNFCLib
             MIFARE_NFC_INVALID_INTENT_ACTION = 128,
             MIFARE_NFC_INTENT_ACTION_NOT_FOUND = 256,
             MIFARE_NFC_NULL_TAG = 512,
-            MIFARE_NFC_AUTH_A_FAILED = 1024,
-            MIFARE_NFC_AUTH_B_FAILED = 2048,
+            MIFARE_NFC_UN_WRITABLE_TAG = 1024,
+            MIFARE_NFC_INVALID_MSG = 2048,
             MIFARE_NFC_AUTH_OK = 4096,
             MIFARE_NFC_TAG_WRITTEN = 8192,
             MIFARE_NFC_AUTO_WRITE_DISABLED = 16384,
             MIFARE_NFC_LAST_WRITE_INCOMPLETE = 32768,
             MIFARE_NFC_WAITING_FOR_TAG = 65536,
-            MIFARE_NFC_AUTO_READ_DISABLED = 131072,
-            MIFARE_NFC_AUTO_WRITE_NOT_SETUPED = 262144,
-            MIFARE_NFC_AUTO_READ_NOT_SETUPED = 524288,
-            MIFARE_NFC_INVALID_AUTO_WRITE_DATA = 1048576,
+            MIFARE_NFC_AUTO_WRITE_NOT_SETUPED = 131072,
+            MIFARE_NFC_INVALID_AUTO_WRITE_DATA = 262144,
         }
         public struct TagInfo
         {
             public byte[] Uid { get; set; }
-            public int BlockCount { get; set; }
-            public int SectorCount { get; set; }
+            public int MaxSize { get; set; }
             public int Size { get; set; }
-            public MifareClassicType Type { get; set; }
+            public string Type { get; set; }
+            public bool IsWritable { get; set; }
             public List<string> TechList { get; set; }
-
+            public NdefMessage NdefMessage { get; set; }
             public string UID()
             {
                 string data = "";
@@ -271,7 +245,7 @@ namespace MifareNFCLib
             }
             public override string ToString()
             {
-                return $"[UID : {UID()}] [Block Count : {BlockCount}] [Sector Count : {SectorCount}] [Size : {Size}] [Type : {Type}]";
+                return $"[UID : {UID()}] [Max Size : {MaxSize}] [Size : {Size}] [Is Writable : {IsWritable}] [Type : {Type}]";
             }
         }
     }
