@@ -1,4 +1,7 @@
 <resources>
-    <string name="app_name">MifareNFCLib.Demo</string>
-    <string name="action_settings">Settings</string>
+  <string name="app_name">MifareNFCLib.Demo</string>
+  <string name="action_settings">Settings</string>
+  <string name="Write_Ndef">Write Ndef</string>
+  <string name="Write_Mifare">Write Mifare</string>
+  <string name="Format_Ndef">Format Ndef</string>
 </resources>

@@ -5,20 +5,85 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
-    <EditText
-        android:inputType="textMultiLine"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
+    <LinearLayout
+        android:orientation="vertical"
         android:minWidth="25px"
         android:minHeight="25px"
-        android:id="@+id/editText1"
-        android:textAlignment="inherit" />
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/linearLayout1">
+        <LinearLayout
+            android:orientation="horizontal"
+            android:minWidth="25px"
+            android:minHeight="25px"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/linearLayout2">
+            <Button
+                android:text="@string/Write_Ndef"
+                android:layout_width="56.5dp"
+                android:layout_height="match_parent"
+                android:id="@+id/wndef"
+                android:textSize="9dp"/>
+            <Button
+                android:text="@string/Write_Mifare"
+                android:layout_width="59.5dp"
+                android:layout_height="match_parent"
+                android:id="@+id/wmifare"
+                android:textSize="9dp"/>
+            <Button
+                android:text="@string/Format_Ndef"
+                android:layout_width="64.0dp"
+                android:layout_height="match_parent"
+                android:id="@+id/nformat"
+                android:textSize="9dp"/>
+            <LinearLayout
+                android:orientation="vertical"
+                android:minWidth="25px"
+                android:minHeight="25px"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:id="@+id/linearLayout3">
+                <TextView
+                    android:text="State"
+                    android:textAppearance="?android:attr/textAppearanceSmall"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/txtstate"
+                    android:textColor="#ff00ff00"
+                    android:textSize="10dp" />
+                <EditText
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/wmsg"
+                    android:inputType="none|text"
+                    tools:text="Message"
+                    android:textSize="11dp" />
+            </LinearLayout>
 
-    <android.support.design.widget.FloatingActionButton
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:id="@+id/floatingActionButton1" />
+        </LinearLayout>
+        <LinearLayout
+            android:orientation="horizontal"
+            android:minWidth="25px"
+            android:minHeight="25px"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/linearLayout4">
+            <Button
+                android:text="Clear"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:id="@+id/lgcle"
+                android:textSize="9dp" />
+        </LinearLayout>
+        <EditText
+            android:inputType="textMultiLine"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:minWidth="25px"
+            android:minHeight="25px"
+            android:id="@+id/editText1"
+            android:textSize="9dp" />
 
-
-
+    </LinearLayout>
 </RelativeLayout>
