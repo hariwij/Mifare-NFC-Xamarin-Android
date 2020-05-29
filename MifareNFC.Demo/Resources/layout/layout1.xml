@@ -1,11 +1,9 @@
 
-<RelativeLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
-    <LinearLayout
+        <LinearLayout
         android:orientation="vertical"
         android:minWidth="25px"
         android:minHeight="25px"
@@ -61,9 +59,28 @@
             </LinearLayout>
 
         </LinearLayout>
-        <ListView
-            android:id="@+id/lstview"
+        <LinearLayout
+            android:orientation="horizontal"
+            android:minWidth="25px"
+            android:minHeight="25px"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="wrap_content"
+            android:id="@+id/linearLayout4">
+            <Button
+                android:text="Clear"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:id="@+id/lgcle"
+                android:textSize="9dp" />
+        </LinearLayout>
+        <EditText
+            android:inputType="textMultiLine"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:minWidth="25px"
+            android:minHeight="25px"
+            android:id="@+id/editText1"
+            android:textSize="9dp" />
+
     </LinearLayout>
-</RelativeLayout>
+</LinearLayout>

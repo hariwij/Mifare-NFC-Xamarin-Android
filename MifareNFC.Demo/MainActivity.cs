@@ -14,17 +14,18 @@ using Android.Nfc;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System;
+using MifareNFCLib.Demo.ListView;
 
 namespace MifareNFCLib.Demo
 {
     [Activity(Label = "@string/app_name", Theme = "@style/AppTheme", MainLauncher = true)]
     public class MainActivity : AppCompatActivity
     {
-        private EditText CLI;
+        //private EditText CLI;
         private EditText TxtMsg;
         private TextView TxtState;
         private readonly NFC NFC = new NFC();
-
+        private Android.Support.V7.App.AlertDialog.Builder wait;
         private WaitingState State;
         protected override void OnCreate(Bundle savedInstanceState)
         {
@@ -32,14 +33,14 @@ namespace MifareNFCLib.Demo
             Xamarin.Essentials.Platform.Init(this, savedInstanceState);
             // Set our view from the "main" layout resource
             SetContentView(Resource.Layout.activity_main);
-            CLI = FindViewById<EditText>(Resource.Id.editText1);
+            //CLI = FindViewById<EditText>(Resource.Id.editText1);
             FindViewById<Button>(Resource.Id.wndef).Click += WriteNdef_Click;
             FindViewById<Button>(Resource.Id.wmifare).Click += WriteMifare_Click;
             FindViewById<Button>(Resource.Id.nformat).Click += Format_Click;
-            FindViewById<Button>(Resource.Id.lgcle).Click += Clearlog_Click;
+            //FindViewById<Button>(Resource.Id.lgcle).Click += Clearlog_Click;
             TxtMsg = FindViewById<EditText>(Resource.Id.wmsg);
             TxtState = FindViewById<TextView>(Resource.Id.txtstate);
-            Terminal.Init(CLI);
+            //Terminal.Init(CLI);
 
             Terminal.WriteLine("Initializeing...");
             Terminal.WriteLine(NFC.Initialize(this, new string[] { NfcAdapter.ActionTagDiscovered }).ToString());
@@ -47,20 +48,36 @@ namespace MifareNFCLib.Demo
             //NFC.OnReading_NdefMessage += OnReadNdefMessage;
             //NFC.OnWriting_NdefMessage += OnWriteNdefMessage;
             TxtState.Text = "Initialized";
+            var item = new List<IListItem>();
+            item.Add(new StatusHeaderListItem("Waiting For Tag..."));
+            //item.Add(new DataItem("hi", "text"));
+            var lst = FindViewById<Android.Widget.ListView>(Resource.Id.lstview);
+            lst.Adapter = new ListViewAdapter(this, item);
         }
-
         private void Clearlog_Click(object sender, EventArgs e)
         {
-            CLI.Text = "";
+            Terminal.Clear();
         }
-
+        void Openwait()
+        {
+            wait = new Android.Support.V7.App.AlertDialog.Builder(this);
+            wait.SetTitle("Waiting For Tag...");
+            wait.SetMessage("Tap Your Tag To Complete Action...");
+            wait.Create().Show();
+        }
         private void WriteNdef_Click(object sender, System.EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(TxtMsg.Text))
             {
-                Toast.MakeText(this, "Enter Message To Write", ToastLength.Long);
+                Android.Support.V7.App.AlertDialog.Builder msg = new Android.Support.V7.App.AlertDialog.Builder(this);
+                msg.SetTitle("Empty Message!!!");
+                msg.SetMessage("Please Enter Message To Write...");
+                msg.SetPositiveButton("OK", (s, a) => { });
+                msg.SetCancelable(true);
+                msg.Create().Show();
                 return;
             }
+            Openwait();
             TxtState.Text = "Ndef - Waiting For Tag";
             Terminal.WriteLine($"Set Ndef Writing Data > {TxtMsg.Text}");
             State = WaitingState.Write_Ndef;
@@ -69,18 +86,87 @@ namespace MifareNFCLib.Demo
         {
             if (string.IsNullOrWhiteSpace(TxtMsg.Text))
             {
-                Toast.MakeText(this, "", ToastLength.Long);
+                Android.Support.V7.App.AlertDialog.Builder msg = new Android.Support.V7.App.AlertDialog.Builder(this);
+                msg.SetTitle("Empty Message!!!");
+                msg.SetMessage("Please Enter Message To Write...");
+                msg.SetPositiveButton("OK", (s, a) => { });
+                msg.SetCancelable(true);
+                msg.Create().Show();
                 return;
             }
+            Openwait();
             TxtState.Text = "Mifare - Waiting For Tag";
             Terminal.WriteLine($"Set Mifare Writing Data > {TxtMsg.Text}");
             State = WaitingState.Write_Mifare;
         }
         private void Format_Click(object sender, System.EventArgs e)
         {
+            if (string.IsNullOrWhiteSpace(TxtMsg.Text))
+            {
+                Android.Support.V7.App.AlertDialog.Builder msg = new Android.Support.V7.App.AlertDialog.Builder(this);
+                msg.SetTitle("Empty Message!!!");
+                msg.SetMessage("Please Enter First Message To Write...");
+                msg.SetPositiveButton("OK", (s, a) => { });
+                msg.SetCancelable(true);
+                msg.Create().Show();
+                return;
+            }
+            Openwait();
             TxtState.Text = "Format - Waiting For Tag";
             Terminal.WriteLine($"Set Ndef Format Data");
             State = WaitingState.Format_Ndef;
+        }
+
+        public void AddItem(DataItem dataItem)
+        {
+            var lst = FindViewById<Android.Widget.ListView>(Resource.Id.lstview);
+            var adapter = lst.Adapter as ListViewAdapter;
+
+            var items = adapter?.Items.Where(m => m.GetListItemType() == ListItemType.DataItem).ToList();
+
+            if (items != null && !items.Any(x =>
+                    ((DataItem)x).Text == dataItem.Text && ((DataItem)x).SubTitle == dataItem.SubTitle))
+            {
+                adapter.Items.Add(dataItem);
+            }
+
+            lst.Adapter = new ListViewAdapter(this, adapter?.Items);
+        }
+        public void ClearItems()
+        {
+            var lst = FindViewById<Android.Widget.ListView>(Resource.Id.lstview);
+            var adapter = lst.Adapter as ListViewAdapter;
+            adapter?.Items.Clear();
+            lst.Adapter = new ListViewAdapter(this, adapter?.Items);
+        }
+        public void AddHeader(HeaderListItem dataItem)
+        {
+            var lst = FindViewById<Android.Widget.ListView>(Resource.Id.lstview);
+            var adapter = lst.Adapter as ListViewAdapter;
+
+            var items = adapter?.Items.Where(m => m.GetListItemType() == ListItemType.Header).ToList();
+
+            if (items != null && !items.Any(x => ((HeaderListItem)x).Text == dataItem.Text))
+            {
+                adapter.Items.Add(dataItem);
+            }
+
+            lst.Adapter = new ListViewAdapter(this, adapter?.Items);
+        }
+        public void UpdateStatus(string discoveryStatus)
+        {
+            var lst = FindViewById<Android.Widget.ListView>(Resource.Id.lstview);
+            var adapter = lst.Adapter as ListViewAdapter;
+
+            var hasStatusItem = adapter?.Items?.Any(m => m.GetListItemType() == ListItemType.Status);
+
+            if (hasStatusItem.HasValue && hasStatusItem.Value)
+            {
+                var statusItem = adapter.Items.Single(m => m.GetListItemType() == ListItemType.Status);
+                statusItem.Text = discoveryStatus;
+            }
+
+            lst.Adapter = new ListViewAdapter(this, adapter?.Items);
         }
         protected override void OnResume()
         {
@@ -98,15 +184,27 @@ namespace MifareNFCLib.Demo
         {
             base.OnNewIntent(intent);
             Terminal.WriteLine("New Intent >> " + NFC.OnNewIntent(intent).ToString());
+
         }
+
         void NewTagDetected(NFC.TagInfo? info)
         {
+            ClearItems();
+            var item = new List<IListItem>();
+            item.Add(new StatusHeaderListItem("Waiting For Tag..."));
+            //item.Add(new DataItem("hi", "text"));
+            var lst = FindViewById<Android.Widget.ListView>(Resource.Id.lstview);
+            lst.Adapter = new ListViewAdapter(this, item);
+            UpdateStatus("New Tag Detected!");
             Terminal.WriteLine("New Tag Detected!");
-            if (info == null) { Terminal.WriteLine("Tag Info Returned Null"); return; }
+            if (info == null) { Terminal.WriteLine("Tag Info Returned Null"); UpdateStatus("Tag Info Returned Null!"); return; }
             Terminal.WriteLine("------------------------------------------------------------");
             string Tech = " | ";
             foreach (var tec in info.Value.TechList) Tech += tec.Replace("android.nfc.tech.", "") + " | ";
             Terminal.WriteLine("TechList > " + Tech);
+            AddHeader(new HeaderListItem("Tag Info"));
+            AddItem(new DataItem("Serial Number", info.Value.UID()));
+            AddItem(new DataItem("Tech List", Tech));
             foreach (var tec in info.Value.TechList)
             {
                 switch (tec)
@@ -115,12 +213,22 @@ namespace MifareNFCLib.Demo
                         if (info.Value.IsoDep == null) return;
                         Terminal.WriteLine("\n");
                         Terminal.WriteLine($"Tag Tec = [{tec.Replace("android.nfc.tech.", "")}]");
+                        AddHeader(new HeaderListItem($"Tech = [{tec.Replace("android.nfc.tech.", "")}]"));
+                        AddItem(new DataItem("Max Transcive Length", $"{info.Value.IsoDep.MaxTransceiveLength} bytes"));
+                        AddItem(new DataItem("Timeout", $"{info.Value.IsoDep.Timeout} ms"));
                         break;
 
                     case NFC.Tech_MifareClassic:
                         if (info.Value.MifareClassic == null) return;
                         Terminal.WriteLine("\n");
                         Terminal.WriteLine($"Tag Tec = [{tec.Replace("android.nfc.tech.", "")}]");
+                        AddHeader(new HeaderListItem($"Tech = [{tec.Replace("android.nfc.tech.", "")}]"));
+                        AddItem(new DataItem("Type", $"{info.Value.MifareClassic.Type}"));
+                        AddItem(new DataItem("Size", $"{info.Value.MifareClassic.Size} bytes"));
+                        AddItem(new DataItem("Block Count", $"{info.Value.MifareClassic.BlockCount} blocks"));
+                        AddItem(new DataItem("Sector Count", $"{info.Value.MifareClassic.SectorCount} sectors"));
+                        AddItem(new DataItem("Max Transcive Length", $"{info.Value.MifareClassic.MaxTransceiveLength} bytes"));
+                        AddItem(new DataItem("Timeout", $"{info.Value.MifareClassic.Timeout} ms"));
                         info.Value.MifareClassic.Connect();
                         var res = NFC.MifareClassic_AuthenticateSectorWithKeyA(info.Value.MifareClassic, 1, null);
                         Terminal.WriteLine($"Auth > {res}");
@@ -130,10 +238,22 @@ namespace MifareNFCLib.Demo
                             {
                                 Terminal.WriteLine($"Writing Mifare > {TxtMsg.Text}");
                                 NFC.MifareClassic_WriteBlock(info.Value.MifareClassic, info.Value.MifareClassic.SectorToBlock(1), Encoding.UTF8.GetBytes(TxtMsg.Text));
+                                Android.Support.V7.App.AlertDialog.Builder msg = new Android.Support.V7.App.AlertDialog.Builder(this);
+                                msg.SetTitle("Success!!!");
+                                msg.SetMessage("Tag Written Successfully...");
+                                msg.SetPositiveButton("OK", (s, a) => { });
+                                msg.SetCancelable(true);
+                                msg.Create().Show();
                                 TxtState.Text = "Written Mifare";
                             }
                             else
                             {
+                                Android.Support.V7.App.AlertDialog.Builder msg = new Android.Support.V7.App.AlertDialog.Builder(this);
+                                msg.SetTitle("Error!!!");
+                                msg.SetMessage("Failed To Write Tag...");
+                                msg.SetPositiveButton("OK", (s, a) => { });
+                                msg.SetCancelable(true);
+                                msg.Create().Show();
                                 TxtState.Text = "Failed Write Mifare";
                             }
                         }
@@ -141,7 +261,9 @@ namespace MifareNFCLib.Demo
                         {
                             if (res == NFC.NFCMessage.NFC_AUTH_OK)
                             {
-                                Terminal.WriteLine($"Reading Mifare > {Encoding.UTF8.GetString(NFC.MifareClassic_ReadBlock(info.Value.MifareClassic, info.Value.MifareClassic.SectorToBlock(1)))}");
+                                var rm = NFC.MifareClassic_ReadBlock(info.Value.MifareClassic, info.Value.MifareClassic.SectorToBlock(1));
+                                Terminal.WriteLine($"Reading Mifare > {Encoding.UTF8.GetString(rm)}");
+                                AddItem(new DataItem("Reading", Encoding.UTF8.GetString(rm)));
                             }
                         }
                         info.Value.MifareClassic.Close();
@@ -151,12 +273,22 @@ namespace MifareNFCLib.Demo
                         if (info.Value.MifareUltralight == null) return;
                         Terminal.WriteLine("\n");
                         Terminal.WriteLine($"Tag Tec = [{tec.Replace("android.nfc.tech.", "")}]");
+                        AddHeader(new HeaderListItem($"Tech = [{tec.Replace("android.nfc.tech.", "")}]"));
+                        AddItem(new DataItem("Type", $"{info.Value.MifareUltralight.Type}"));
+                        AddItem(new DataItem("Max Transcive Length", $"{info.Value.MifareUltralight.MaxTransceiveLength} bytes"));
+                        AddItem(new DataItem("Timeout", $"{info.Value.MifareUltralight.Timeout} ms"));
                         break;
 
                     case NFC.Tech_Ndef:
                         if (info.Value.Ndef == null) return;
                         Terminal.WriteLine("\n");
                         Terminal.WriteLine($"Tag Tec = [{tec.Replace("android.nfc.tech.", "")}]");
+                        AddHeader(new HeaderListItem($"Tech = [{tec.Replace("android.nfc.tech.", "")}]"));
+                        AddItem(new DataItem("Type", $"{info.Value.Ndef.Type}"));
+                        AddItem(new DataItem("Writable", $"{info.Value.Ndef.IsWritable}"));
+                        AddItem(new DataItem("Can Make Read-Only", $"{info.Value.Ndef.CanMakeReadOnly()}"));
+                        AddItem(new DataItem("Max Size", $"{info.Value.Ndef.MaxSize} bytes"));
+                        AddHeader(new HeaderListItem($"Ndef Message..."));
                         info.Value.Ndef.Connect();
                         if (State == WaitingState.Write_Ndef)
                         {
@@ -165,6 +297,12 @@ namespace MifareNFCLib.Demo
                             //NdefRecord record = NdefRecord.CreateTextRecord("", "SomeTxt");
                             NdefMessage message = new NdefMessage(new NdefRecord[] { record });
                             NFC.Ndef_WriteMessage(info.Value.Ndef, message);
+                            Android.Support.V7.App.AlertDialog.Builder msg = new Android.Support.V7.App.AlertDialog.Builder(this);
+                            msg.SetTitle("Success!!!");
+                            msg.SetMessage("Tag Written Successfully...");
+                            msg.SetPositiveButton("OK", (s, a) => { });
+                            msg.SetCancelable(true);
+                            msg.Create().Show();
                             TxtState.Text = "Written Ndef";
                         }
                         if (State == WaitingState.None)
@@ -172,8 +310,9 @@ namespace MifareNFCLib.Demo
                             int i = 0;
                             foreach (var msg in NFC.Ndef_ReadMessage(info.Value.Ndef).GetRecords())
                             {
-                                i++;
                                 Terminal.WriteLine($"Reading Ndef Msg [{i}] > {Encoding.ASCII.GetString(msg.GetPayload())}");
+                                AddItem(new DataItem($"Record [{i}] - [UFT-8] [{ msg.ToMimeType()}]", $"{Encoding.UTF8.GetString(msg.GetPayload())}"));
+                                i++;
                             }
                         }
                         info.Value.Ndef.Close();
@@ -183,12 +322,31 @@ namespace MifareNFCLib.Demo
                         if (info.Value.NdefFormatable == null) return;
                         Terminal.WriteLine("\n");
                         Terminal.WriteLine($"Tag Tec = [{tec.Replace("android.nfc.tech.", "")}]");
+                        AddHeader(new HeaderListItem($"Tech = [{tec.Replace("android.nfc.tech.", "")}]"));
                         if (State == WaitingState.Format_Ndef)
                         {
                             var res1 = NFC.NdefFormatable_FormatTag(info.Value.NdefFormatable.Tag);
                             Terminal.WriteLine($"Ndef Format > {res1}");
-                            if (res1 == NFC.NFCMessage.NFC_TAG_FORMATED) TxtState.Text = "Formated Ndef";
-                            else TxtState.Text = "Failed Format Ndef";
+                            if (res1 == NFC.NFCMessage.NFC_TAG_FORMATED)
+                            {
+                                Android.Support.V7.App.AlertDialog.Builder msg = new Android.Support.V7.App.AlertDialog.Builder(this);
+                                msg.SetTitle("Success!!!");
+                                msg.SetMessage("Tag Formatted Successfully...");
+                                msg.SetPositiveButton("OK", (s, a) => { });
+                                msg.SetCancelable(true);
+                                msg.Create().Show();
+                                TxtState.Text = "Formated Ndef";
+                            }
+                            else
+                            {
+                                Android.Support.V7.App.AlertDialog.Builder msg = new Android.Support.V7.App.AlertDialog.Builder(this);
+                                msg.SetTitle("Error!!!");
+                                msg.SetMessage("Failed To Format Tag...");
+                                msg.SetPositiveButton("OK", (s, a) => { });
+                                msg.SetCancelable(true);
+                                msg.Create().Show();
+                                TxtState.Text = "Failed Format Ndef";
+                            }
                         }
                         if (State == WaitingState.None)
                         {
@@ -200,32 +358,95 @@ namespace MifareNFCLib.Demo
                         if (info.Value.NfcA == null) return;
                         Terminal.WriteLine("\n");
                         Terminal.WriteLine($"Tag Tec = [{tec.Replace("android.nfc.tech.", "")}]");
+                        info.Value.NfcA.Connect();
+                        AddHeader(new HeaderListItem($"Tech = [{tec.Replace("android.nfc.tech.", "")}]"));
+                        AddItem(new DataItem("Max Transcive Length", $"{info.Value.NfcA.MaxTransceiveLength} bytes"));
+                        AddItem(new DataItem("Timeout", $"{info.Value.NfcA.Timeout} ms"));
+                        AddItem(new DataItem("Sak", $"{info.Value.NfcA.Sak}"));
+                        AddItem(new DataItem("Atqa", $"{Encoding.ASCII.GetString(info.Value.NfcA.GetAtqa())}"));
+                        info.Value.NfcA.Close();
                         break;
 
                     case NFC.Tech_NfcB:
                         if (info.Value.NfcB == null) return;
                         Terminal.WriteLine("\n");
                         Terminal.WriteLine($"Tag Tec = [{tec.Replace("android.nfc.tech.", "")}]");
+                        info.Value.NfcB.Connect();
+                        AddHeader(new HeaderListItem($"Tech = [{tec.Replace("android.nfc.tech.", "")}]"));
+                        AddItem(new DataItem("Max Transcive Length", $"{info.Value.NfcB.MaxTransceiveLength} bytes"));
+                        AddItem(new DataItem("Application Data", $"{Encoding.ASCII.GetString(info.Value.NfcB.GetApplicationData())}"));
+                        AddItem(new DataItem("Protocol Info", $"{Encoding.ASCII.GetString(info.Value.NfcB.GetProtocolInfo())}"));
+                        info.Value.NfcB.Close();
                         break;
 
                     case NFC.Tech_NfcBarcode:
                         if (info.Value.NfcBarcode == null) return;
                         Terminal.WriteLine("\n");
                         Terminal.WriteLine($"Tag Tec = [{tec.Replace("android.nfc.tech.", "")}]");
+                        info.Value.NfcBarcode.Connect();
+                        AddHeader(new HeaderListItem($"Tech = [{tec.Replace("android.nfc.tech.", "")}]"));
+                        AddItem(new DataItem("Type", $"{info.Value.NfcBarcode.Type}"));
+                        AddItem(new DataItem("Barcode", $"{Encoding.ASCII.GetString(info.Value.NfcBarcode.GetBarcode())}"));
+                        info.Value.NfcBarcode.Close();
                         break;
 
                     case NFC.Tech_NfcF:
                         if (info.Value.NfcF == null) return;
                         Terminal.WriteLine("\n");
                         Terminal.WriteLine($"Tag Tec = [{tec.Replace("android.nfc.tech.", "")}]");
+                        info.Value.NfcF.Connect();
+                        AddHeader(new HeaderListItem($"Tech = [{tec.Replace("android.nfc.tech.", "")}]"));
+                        AddItem(new DataItem("Manufacturer", $"{Encoding.ASCII.GetString(info.Value.NfcF.GetManufacturer())}"));
+                        AddItem(new DataItem("System Code", $"{Encoding.ASCII.GetString(info.Value.NfcF.GetSystemCode())}"));
+                        AddItem(new DataItem("Max Transcive Length", $"{info.Value.NfcF.MaxTransceiveLength} bytes"));
+                        AddItem(new DataItem("Timeout", $"{info.Value.NfcF.Timeout} ms"));
+                        info.Value.NfcF.Close();
                         break;
 
                     case NFC.Tech_NfcV:
                         Terminal.WriteLine("\n");
                         if (info.Value.NfcV == null) return;
+                        info.Value.NfcV.Connect();
+                        AddHeader(new HeaderListItem($"Tech = [{tec.Replace("android.nfc.tech.", "")}]"));
+                        AddItem(new DataItem("Dsf Id", $"{info.Value.NfcV.DsfId}"));
+                        AddItem(new DataItem("Response Flags", $"{info.Value.NfcV.ResponseFlags}"));
+                        AddItem(new DataItem("Max Transcive Length", $"{info.Value.NfcV.MaxTransceiveLength} bytes"));
+                        info.Value.NfcV.Close();
                         break;
                 }
             }
+            if (TxtState.Text.Contains("Waiting"))
+            {
+                Android.Support.V7.App.AlertDialog.Builder msg = new Android.Support.V7.App.AlertDialog.Builder(this);
+                if (State == WaitingState.Format_Ndef)
+                {
+                    msg.SetTitle("Failed To Format Tag!!!");
+                    msg.SetMessage("Tag You Tapped Dosen't Supports 'NdefFormatable' Technology...");
+                    msg.SetPositiveButton("OK", (s, a) => { });
+                    msg.SetCancelable(true);
+                    msg.Create().Show();
+                    TxtState.Text = "Failed To Format";
+                }
+                else if (State == WaitingState.Write_Mifare)
+                {
+                    msg.SetTitle("Failed To Write Tag!!!");
+                    msg.SetMessage("Tag You Tapped Dosen't Supports 'MifareClassic' Technology...");
+                    msg.SetPositiveButton("OK", (s, a) => { });
+                    msg.SetCancelable(true);
+                    msg.Create().Show();
+                    TxtState.Text = "Failed To Write";
+                }
+                else if (State == WaitingState.Write_Ndef)
+                {
+                    msg.SetTitle("Failed To Write Tag!!!");
+                    msg.SetMessage("Tag You Tapped Dosen't Supports 'Ndef' Technology...");
+                    msg.SetPositiveButton("OK", (s, a) => { });
+                    msg.SetCancelable(true);
+                    msg.Create().Show();
+                    TxtState.Text = "Failed To Write";
+                }
+            }
+            else TxtMsg.Text = "";
             State = WaitingState.None;
             Terminal.WriteLine("------------------------------------------------------------");
         }
@@ -271,14 +492,17 @@ namespace MifareNFCLib.Demo
         }
         public static void WriteLine(string s)
         {
+            if (_cli == null) return;
             _cli.Text += "\n" + s;
         }
         public static void Write(string s)
         {
+            if (_cli == null) return;
             _cli.Text += s;
         }
         public static void Clear()
         {
+            if (_cli == null) return;
             _cli.Text = "";
         }
     }

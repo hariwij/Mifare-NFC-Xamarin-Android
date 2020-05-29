@@ -25,6 +25,9 @@ namespace MifareNFCLib
         public const string Tech_NfcBarcode = "android.nfc.tech.NfcBarcode";
         public const string Tech_NfcF = "android.nfc.tech.NfcF";
         public const string Tech_NfcV = "android.nfc.tech.NfcV";
+
+        public const byte NfcA_Read_Key = (byte)0x30;
+        public const byte NfcA_Write_Key = (byte)0xA2;
         #endregion
         #region Public Members
         public NfcAdapter NfcAdapter { get; private set; }
@@ -111,6 +114,7 @@ namespace MifareNFCLib
             return (new TagInfo
             {
                 Uid = tag.GetId(),
+                Tag=tag,
                 IsoDep = IsoDep.Get(tag),
                 MifareClassic = MifareClassic.Get(tag),
                 MifareUltralight = MifareUltralight.Get(tag),
@@ -182,7 +186,7 @@ namespace MifareNFCLib
         {
             return mfc.ReadBlock(Block);
         }
-        public void MifareClassic_WriteBlock(MifareClassic mfc, int Block,byte[] Data)
+        public void MifareClassic_WriteBlock(MifareClassic mfc, int Block, byte[] Data)
         {
             var tmp = new byte[16];
             if (Data.Length >= 16)
@@ -238,6 +242,14 @@ namespace MifareNFCLib
             OnFormatting_NdefTag?.Invoke();
             return NFCMessage.NFC_TAG_FORMATED;
         }
+        public byte[] NfcA_ReadPage(NfcA nfca, byte Page)
+        {
+            return nfca.Transceive(new byte[2] { NfcA_Read_Key, Page });
+        }
+        public byte[] NfcA_WritePage(NfcA nfca, byte Page)
+        {
+            return nfca.Transceive(new byte[2] { NfcA_Write_Key, Page });
+        }
         public string CheckIntentActions(string[] actions)
         {
             var allact = new string[] { NfcAdapter.ActionAdapterStateChanged, NfcAdapter.ActionNdefDiscovered, NfcAdapter.ActionTagDiscovered, NfcAdapter.ActionTechDiscovered, NfcAdapter.ActionTransactionDetected };
@@ -288,6 +300,7 @@ namespace MifareNFCLib
         public struct TagInfo
         {
             public byte[] Uid { get; set; }
+            public Tag Tag { get; set; }
             public IsoDep IsoDep { get; set; }
             public MifareClassic MifareClassic { get; set; }
             public MifareUltralight MifareUltralight { get; set; }
